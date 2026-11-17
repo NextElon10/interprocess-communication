@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inter-Process Communication — Interactive Visual Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F4F0E8; --card:#FBF9F5; --sunk:#ECE7DC; --ink:#1C1B18; --ink2:#46433C; --mute:#77726A; --faint:#A8A296;
+  --line:#DCD5C7; --line2:#C5BDAC;
+  --acc:#C4432A; --acc-soft:#F4DFD7;
+  --blue:#2E5E8C; --blue-soft:#DDE6EF; --green:#4E7B3B; --green-soft:#E2EBDA;
+  --amber:#B57A16; --amber-soft:#F3E5C9; --red:#AE2A20; --red-soft:#F4DAD6; --plum:#6B5191; --plum-soft:#E7E0F0;
+  --term:#1F1E1B; --term2:#272622; --tline:#36342F; --ttext:#E7E1D3; --tdim:#8D877B;
+  --serif:"Source Serif 4",Georgia,serif; --sans:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+  --r:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16.5px;line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:var(--acc)}
+:focus-visible{outline:2px solid var(--acc);outline-offset:3px;border-radius:3px}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:0}
+code,.mono{font-family:var(--mono);font-size:.92em}
+.wrap{max-width:1160px;margin:0 auto;padding:0 28px}
+
+/* nav */
+nav.top{position:sticky;top:0;z-index:50;background:var(--paper);border-bottom:1px solid var(--line)}
+nav.top .wrap{display:flex;align-items:center;gap:24px;height:56px}
+.brand{font-family:var(--serif);font-weight:700;font-size:19px;display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink);white-space:nowrap}
+.brand i{width:18px;height:18px;border:2px solid var(--ink);border-radius:3px;position:relative;display:inline-block}
+.brand i::after{content:"";position:absolute;inset:3px 3px auto auto;width:6px;height:6px;background:var(--acc)}
+nav.top .links{display:flex;gap:2px;margin-left:auto;overflow-x:auto;scrollbar-width:none}
+nav.top .links a{color:var(--mute);text-decoration:none;font-size:14px;padding:6px 10px;border-radius:4px;white-space:nowrap}
+nav.top .links a:hover{color:var(--ink)}
+nav.top .links a.on{color:var(--ink);box-shadow:inset 0 -2px 0 var(--acc);border-radius:0}
+
+/* hero */
+.hero{padding:78px 0 70px;border-bottom:1px solid var(--line)}
+.hero .wrap{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+.kicker{font-family:var(--mono);font-size:12.5px;letter-spacing:.06em;color:var(--acc);text-transform:uppercase}
+.hero h1{font-family:var(--serif);font-size:clamp(44px,6vw,78px);line-height:1;letter-spacing:-.02em;font-weight:700;margin-top:14px}
+.hero h1 .thin{display:block;font-weight:400;font-style:italic;color:var(--ink2);font-size:.42em;line-height:1.2;margin-top:16px;letter-spacing:0}
+.hero p.lede{margin-top:22px;font-size:18.5px;color:var(--ink2);max-width:40ch}
+.cta{display:flex;gap:10px;margin-top:30px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:var(--r);font-weight:500;font-size:15px;text-decoration:none;border:1px solid var(--ink);color:var(--ink)}
+.btn.primary{background:var(--ink);color:var(--paper)}
+.btn:hover{background:var(--ink);color:var(--paper)}
+
+/* relay panel */
+.relay{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px}
+.relay .layer{padding:12px 14px;border-radius:var(--r);border:1px solid var(--line);background:var(--paper);transition:border-color .35s,background .35s}
+.relay .layer.lit{border-color:var(--acc);background:var(--acc-soft)}
+.relay .layer.kern{background:var(--term);border-color:var(--term);color:var(--ttext)}
+.relay .layer.kern.lit{border-color:var(--acc);box-shadow:inset 3px 0 0 var(--acc)}
+.relay .who{font-size:12.5px;color:var(--mute);display:flex;justify-content:space-between;gap:10px}
+.relay .who b{color:var(--ink);font-weight:600}
+.relay .kern .who b{color:var(--ttext)} .relay .kern .who{color:var(--tdim)}
+.relay .layer:not(.kern) .k{color:#9A5B14}.relay .layer:not(.kern) .t{color:var(--blue)}.relay .layer:not(.kern) .st{color:var(--green)}.relay .layer:not(.kern) .n{color:var(--red)}.relay .layer:not(.kern) .c{color:var(--mute)}.relay .layer:not(.kern) .f{color:var(--ink);font-weight:600}
+.relay .code{font-family:var(--mono);font-size:14px;margin-top:5px;min-height:22px;white-space:pre;overflow:hidden;text-overflow:ellipsis}
+.hop{display:flex;align-items:center;gap:12px;height:40px;padding-left:26px;position:relative}
+.hop::before{content:"";position:absolute;left:30px;top:4px;bottom:4px;width:2px;background:var(--line2);transition:background .3s}
+.hop.lit::before{background:var(--acc)}
+.hop span{margin-left:18px;font-family:var(--mono);font-size:12px;color:var(--mute)}
+.hop em{margin-left:auto;font-style:normal;font-size:11.5px;color:var(--plum);border-top:1px dashed var(--plum);padding:0 4px;opacity:.85}
+.relay .foot{display:flex;justify-content:space-between;margin-top:16px;font-size:12.5px;color:var(--mute);gap:10px}
+.relay .foot b{color:var(--ink);font-weight:600}
+
+/* sections */
+section.s{padding:88px 0;border-bottom:1px solid var(--line)}
+.shead{display:grid;grid-template-columns:64px 1fr;gap:6px 18px;margin-bottom:36px;max-width:880px}
+.shead .num{font-family:var(--mono);font-size:14px;color:var(--acc);padding-top:12px}
+.shead h2{font-family:var(--serif);font-size:clamp(30px,3.6vw,42px);line-height:1.1;letter-spacing:-.015em;font-weight:700}
+.shead p{grid-column:2;color:var(--ink2);font-size:17px;max-width:66ch}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:10px}
+.chip{padding:7px 13px;border-radius:var(--r);border:1px solid var(--line2);font-size:14px;background:var(--card)}
+.chip:hover{border-color:var(--ink)}
+.chip.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.chip:disabled{opacity:.4;cursor:default}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:var(--r);padding:2px;flex:none;background:var(--card)}
+.seg button{font-size:13.5px;padding:6px 12px;border-radius:4px;color:var(--mute)}
+.seg button.on{background:var(--ink);color:var(--paper)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+label.sp{font-size:13.5px;color:var(--mute);display:inline-flex;align-items:center;gap:8px}
+input[type=range]{accent-color:var(--acc);width:120px}
+.status{font-size:15px;padding:13px 16px;border-radius:var(--r);background:var(--sunk);color:var(--ink2);min-height:50px}
+.status.bad{background:var(--red-soft);color:var(--red)}
+.status.ok{background:var(--green-soft);color:var(--green)}
+.lbl{font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin:18px 0 8px}
+.lbl:first-child{margin-top:0}
+ul.pts{margin:22px 0 0 20px;color:var(--ink2);max-width:90ch}
+ul.pts li{margin-top:7px}
+ul.pts li::marker{color:var(--acc)}
+
+/* terminal code */
+.term{background:var(--term);color:var(--ttext);border-radius:var(--r)}
+.term .bar{padding:10px 16px;font-family:var(--mono);font-size:12px;color:var(--tdim);border-bottom:1px solid var(--tline)}
+.codebox{font-family:var(--mono);font-size:13.2px;line-height:1.8;padding:10px 0;overflow:auto}
+.codebox .ln{display:flex;padding-right:14px;border-left:3px solid transparent;transition:background .2s}
+.codebox .ln .no{width:40px;flex:none;text-align:right;padding-right:14px;color:var(--tdim);user-select:none}
+.codebox .ln .tx{white-space:pre}
+.codebox .ln.hl{background:rgba(196,67,42,.18);border-left-color:var(--acc)}
+.k{color:#D9A066}.t{color:#9DB8D6}.st{color:#B7C98F}.n{color:#E3AE9F}.c{color:var(--tdim)}.f{color:#F0EADC;font-weight:500}
+
+/* models */
+.mtop{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;padding:16px 20px;border-bottom:1px solid var(--line)}
+.steps{display:flex;gap:6px;flex-wrap:wrap}
+.steps button{font-size:13px;padding:5px 10px;border-radius:4px;border:1px solid var(--line);color:var(--mute)}
+.steps button.on{border-color:var(--acc);color:var(--acc);background:var(--acc-soft)}
+.steps button.done{color:var(--ink2)}
+.mgrid{display:grid;grid-template-columns:1fr 1.05fr}
+.mgrid .dia{padding:18px 20px;border-right:1px solid var(--line)}
+.mgrid .side{padding:20px 22px;display:flex;flex-direction:column;gap:16px}
+.mgrid h3{font-family:var(--serif);font-size:24px;line-height:1.2;font-weight:700}
+.mgrid .side p{color:var(--ink2);margin-top:6px}
+.bx rect{fill:var(--card);stroke:var(--ink2);stroke-width:1.2;transition:fill .3s,stroke .3s}
+.bx.shared rect{fill:var(--green-soft);stroke:var(--green)}
+.bx.kern rect{fill:var(--term);stroke:var(--term)}
+.bx.kern text{fill:var(--ttext)}
+.bx.empty rect{fill:none;stroke:var(--line2);stroke-dasharray:4 4}
+.bx.hl rect{stroke:var(--acc);stroke-width:2.4}
+.bx text{font:600 13px var(--sans);fill:var(--ink)}
+.svs{font:500 11.5px var(--mono);fill:var(--mute)}
+.bx.kern .svs{fill:#D9A066}
+.lane{fill:none;stroke:var(--line2);stroke-width:1.3;stroke-dasharray:3 4}
+.setup{fill:none;stroke:var(--plum);stroke-width:1.8;stroke-dasharray:6 4;opacity:0;transition:opacity .3s}
+.pkt{fill:var(--acc);opacity:0}
+.cmp{width:100%;border-collapse:collapse;font-size:15.5px}
+.cmp th,.cmp td{text-align:left;padding:13px 18px;border-bottom:1px solid var(--line);vertical-align:top}
+.cmp th{font-family:var(--mono);font-weight:500;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--mute)}
+.cmp td:first-child{color:var(--mute);width:20%}
+.cmp tr:last-child td{border-bottom:0}
+
+/* mechanisms */
+.mech{display:grid;grid-template-columns:1.1fr 1fr;gap:22px;align-items:start}
+.mstack{padding:14px}
+.mgrp{padding:14px;border-radius:var(--r);border:1px solid var(--line);background:var(--paper)}
+.mgrp + .mgrp{margin-top:10px}
+.mgrp h4{font-size:14.5px;font-weight:600}
+.mgrp small{display:block;font-size:12.5px;color:var(--mute);font-weight:400;margin-bottom:10px}
+.mbtns{display:flex;flex-wrap:wrap;gap:6px}
+.mbtn{font-family:var(--mono);font-size:12.5px;padding:5px 10px;border-radius:4px;border:1px solid var(--line2);background:var(--card)}
+.mbtn[data-c=msg]{border-left:3px solid var(--blue)}
+.mbtn[data-c=shm]{border-left:3px solid var(--green)}
+.mbtn[data-c=sync]{border-left:3px solid var(--amber)}
+.mbtn.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.mbtn.dim{opacity:.3}
+.minfo{padding:24px 26px;position:sticky;top:76px}
+.minfo .cat{font-family:var(--mono);font-size:12px;letter-spacing:.05em;text-transform:uppercase}
+.minfo h4{font-family:var(--serif);font-size:28px;font-weight:700;margin-top:2px}
+.minfo p{color:var(--ink2);margin-top:10px}
+.minfo .term{margin-top:16px}
+.minfo .term pre{font-family:var(--mono);font-size:12.8px;line-height:1.7;padding:12px 16px;white-space:pre-wrap}
+.props{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}
+.props div{border:1px solid var(--line);border-radius:var(--r);padding:9px 12px;background:var(--paper)}
+.props span{display:block;font-size:11.5px;color:var(--mute);font-family:var(--mono);text-transform:uppercase;letter-spacing:.04em}
+.props b{font-weight:500;font-size:14.5px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+
+/* race stepper */
+.vtabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.ver{display:grid;grid-template-columns:1.05fr .8fr 1fr}
+.ver>div{min-width:0}
+.ver .tl{border-right:1px solid var(--line);padding:12px 0}
+.ver .tl .ln{display:grid;grid-template-columns:24px 82px 1fr;gap:8px;font-family:var(--mono);font-size:13px;padding:6px 16px;border-left:3px solid transparent;color:var(--faint)}
+.ver .tl .ln .i{text-align:right}
+.ver .tl .ln.seen{color:var(--ink2)}
+.ver .tl .ln.cur{background:var(--acc-soft);border-left-color:var(--acc);color:var(--ink)}
+.ver .tl .ln.err{background:var(--red-soft);border-left-color:var(--red);color:var(--red)}
+.who-a{color:var(--blue);font-weight:600}.who-b{color:var(--acc);font-weight:600}
+.ver .tl .ln:not(.seen):not(.cur):not(.err) .who-a,.ver .tl .ln:not(.seen):not(.cur):not(.err) .who-b{color:inherit;font-weight:400}
+.ver .stc{padding:16px 18px;border-right:1px solid var(--line)}
+.ver h5{font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);font-weight:500;margin-bottom:10px}
+.sgrid{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-family:var(--mono);font-size:13px;align-items:center}
+.sgrid .rn{color:var(--mute)}
+.sgrid .rv{padding:5px 9px;border-radius:4px;background:var(--paper);border:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:border-color .3s,background .3s}
+.rv.chg{border-color:var(--acc);background:var(--acc-soft)}
+.rv.blk{color:var(--plum)} .rv.badv{color:var(--red);border-color:var(--red)}
+.ver .logp{background:var(--term);color:var(--ttext);border-radius:0 10px 0 0;display:flex;flex-direction:column;padding-top:14px}
+.ver .logp h5{padding:0 18px;color:var(--tdim)}
+.vlog{font-family:var(--mono);font-size:12.5px;line-height:1.75;padding:0 18px 16px;overflow:auto;max-height:340px;flex:1;white-space:pre-wrap}
+.vlog .e{color:#EE8E80}.vlog .g{color:#AFCB8D}
+.vfoot{display:flex;align-items:center;gap:14px;padding:14px 18px;border-top:1px solid var(--line);flex-wrap:wrap}
+.vfoot .say{flex:1;min-width:260px;color:var(--ink2);font-size:15px}
+.badge{font-family:var(--mono);font-size:12px;padding:4px 10px;border-radius:4px;border:1px solid var(--line2);color:var(--mute)}
+.badge.ok{color:var(--green);border-color:var(--green)}
+.badge.bad{color:var(--red);border-color:var(--red)}
+.badge.run{color:var(--acc);border-color:var(--acc)}
+
+/* sims shared */
+.sim{display:grid;grid-template-columns:1.15fr 1fr;gap:20px;align-items:start}
+.sim .panel{padding:20px}
+.semrow{display:flex;flex-wrap:wrap;gap:8px}
+.sem{font-family:var(--mono);font-size:13px;border:1px solid var(--line);border-radius:4px;padding:5px 10px;background:var(--paper);transition:background .25s}
+.sem b{font-weight:600;margin-left:6px;font-size:15px}
+.sem.flash{background:var(--amber-soft);border-color:var(--amber)}
+.log{list-style:none;font-family:var(--mono);font-size:12px;line-height:1.7;background:var(--term);color:var(--tdim);border-radius:var(--r);padding:10px 14px;min-height:118px;max-height:132px;overflow:hidden}
+.log li:first-child{color:var(--ttext)}
+.log b{color:#D9A066;font-weight:500}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--mute);margin-top:10px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px}
+details{margin-top:18px;border:1px solid var(--line);border-radius:var(--r);background:var(--card)}
+summary{cursor:pointer;padding:12px 16px;font-weight:500;font-size:15px}
+details pre{font-family:var(--mono);font-size:12.8px;line-height:1.7;padding:14px 18px;background:var(--term);color:var(--ttext);overflow-x:auto;border-radius:0 0 var(--r) var(--r)}
+
+/* dining */
+.dp-table{fill:var(--sunk);stroke:var(--line2)}
+.plate{fill:var(--card);stroke:var(--line2);stroke-width:1.2}
+.ph circle{stroke:var(--paper);stroke-width:3;transition:fill .3s}
+.ph.dead circle{stroke:var(--red);stroke-width:3.5}
+.st-think{fill:var(--faint)} .st-hungry{fill:var(--amber)} .st-one{fill:var(--acc)} .st-eat{fill:var(--green)} .st-wait{fill:var(--plum)}
+.ph text.nm{font:600 14px var(--mono);fill:#fff}
+.ph text.lb{font:500 12px var(--sans);fill:var(--mute)}
+.fork{transition:transform .35s ease}
+.fork line{stroke:var(--ink2);stroke-width:4;stroke-linecap:round}
+.fork.held line{stroke:var(--ink)}
+.fork text{font:500 9.5px var(--mono);fill:var(--mute)}
+.meals{display:flex;gap:6px;flex-wrap:wrap}
+.meals span{font-family:var(--mono);font-size:12.5px;border:1px solid var(--line);border-radius:4px;padding:3px 8px;background:var(--paper)}
+
+/* producer consumer */
+.pcrow{display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center}
+.actor{border:1px solid var(--line2);border-radius:var(--r);padding:12px 14px;text-align:center;min-width:120px;background:var(--paper);transition:all .25s}
+.actor b{display:block;font-size:14.5px}
+.actor small{display:block;font-family:var(--mono);font-size:11.5px;color:var(--mute);margin-top:2px}
+.actor.sleep{border-color:var(--plum);background:var(--plum-soft)}
+.actor.sleep small{color:var(--plum)}
+.actor .ic{font-family:var(--mono);font-size:12px;color:var(--mute)}
+.buf{display:flex;gap:5px;justify-content:center}
+.slot{width:44px;height:48px;border-radius:4px;border:1.5px dashed var(--line2);display:grid;place-items:center;font:600 13px var(--mono);transition:all .25s}
+.slot.full{border:1.5px solid var(--green);background:var(--green-soft);color:var(--green)}
+.ptr{display:flex;gap:5px;justify-content:center;margin-top:4px}
+.ptr span{width:44px;text-align:center;font:500 10.5px var(--mono);line-height:1.3}
+.ptr .in{color:var(--amber)} .ptr .out{color:var(--blue)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:18px}
+.box{border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;background:var(--paper)}
+.box h6{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--mute);font-weight:500}
+.box .big{font-family:var(--serif);font-size:28px;font-weight:700;line-height:1.1;margin-top:2px}
+
+/* readers writers */
+.room{border:2px solid var(--line2);border-radius:var(--r);min-height:112px;padding:12px;display:flex;flex-wrap:wrap;gap:8px;align-content:flex-start;transition:border-color .3s,background .3s}
+.room.r{border-color:var(--blue);background:var(--blue-soft)} .room.w{border-color:var(--acc);background:var(--acc-soft)}
+.room-label{width:100%;font-family:var(--mono);font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--mute)}
+.q{display:flex;flex-wrap:wrap;gap:6px;min-height:52px;padding:8px;border:1px dashed var(--line2);border-radius:var(--r)}
+.ent{width:42px;height:42px;border-radius:50%;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font:600 12px var(--mono);line-height:1}
+.ent small{font-size:9px;opacity:.85;margin-top:2px}
+.ent.R{background:var(--blue)} .ent.W{background:var(--acc)}
+.ent.starve{box-shadow:0 0 0 3px var(--paper),0 0 0 5px var(--red);animation:pulse 1s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 3px var(--paper),0 0 0 8px var(--red-soft)}}
+
+/* barber */
+.shop{display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center}
+.bchair{width:130px;height:132px;border-radius:var(--r);border:1.5px solid var(--line2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:var(--paper);text-align:center;font-size:13px;transition:all .3s}
+.bchair .ic{font:600 13px var(--mono);padding:3px 8px;border-radius:4px;background:var(--plum-soft);color:var(--plum)}
+.bchair.cut{border-color:var(--green);background:var(--green-soft)}
+.bchair.cut .ic{background:var(--green);color:#fff}
+.chairs{display:flex;gap:8px;justify-content:center}
+.chair{width:50px;height:50px;border-radius:var(--r);border:1.5px dashed var(--line2);display:grid;place-items:center}
+.cust{width:38px;height:38px;border-radius:50%;background:var(--amber);color:#fff;display:grid;place-items:center;font:600 12px var(--mono)}
+.door{text-align:center;font-size:12.5px;color:var(--mute);min-width:90px}
+.door b{display:block;font-family:var(--serif);font-size:30px;color:var(--red);line-height:1.1}
+
+/* cheat */
+.cheat{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:22px}
+.cheat .item{padding:16px 18px}
+.cheat .item h4{font-size:15px;font-weight:600}
+.cheat .item p{color:var(--ink2);font-size:14.5px;margin-top:4px}
+footer{padding:44px 0 70px;color:var(--mute);font-size:14px}
+
+@media (max-width:980px){
+  .hero .wrap,.mgrid,.mech,.sim{grid-template-columns:1fr}
+  .mgrid .dia{border-right:0;border-bottom:1px solid var(--line)}
+  .ver{grid-template-columns:1fr}
+  .ver .tl,.ver .stc{border-right:0;border-bottom:1px solid var(--line)}
+  .ver .logp{border-radius:0}
+  .minfo{position:static}
+  .stats{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:640px){
+  .wrap{padding:0 18px}
+  .shead{grid-template-columns:1fr}.shead p{grid-column:1}.shead .num{padding-top:0}
+  nav.top .links{display:none}
+  .shop,.pcrow{grid-template-columns:1fr}
+  .slot,.ptr span{width:38px}
+}
+</style>
+</head>
+<body>
+
+<nav class="top"><div class="wrap">
+  <a class="brand" href="#top"><i></i>IPC, step by step</a>
+  <div class="links">
+    <a href="#models">Two models</a><a href="#mechanisms">Mechanisms</a><a href="#race">Race conditions</a><a href="#dining">Philosophers</a><a href="#pc">Producer–Consumer</a><a href="#rw">Readers–Writers</a><a href="#barber">Barber</a><a href="#cheat">Cheat sheet</a>
+  </div>
+</div></nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <div>
+      <div class="kicker">Operating Systems · Process Synchronization</div>
+      <h1>Inter-Process Communication<span class="thin">How isolated processes share data, and how they take turns without breaking it</span></h1>
+      <p class="lede">Every process has its own private memory, so talking to another process means going through the kernel or sharing a region of memory. This page walks through both models, then the four classic problems that show what goes wrong.</p>
+      <div class="cta">
+        <a class="btn primary" href="#models">Start with the two models</a>
+        <a class="btn" href="#dining">Cause a deadlock</a>
+      </div>
+    </div>
+    <div class="relay" aria-label="A message travelling from process A to process B through different IPC mechanisms">
+      <div class="layer" data-l="0"><div class="who"><b>Process A</b><span>sender · user space</span></div><div class="code" id="h0"></div></div>
+      <div class="hop" data-h="0"><span id="ha0"></span><em>user → kernel</em></div>
+      <div class="layer kern" data-l="1"><div class="who"><b>Kernel</b><span id="hk"></span></div><div class="code" id="h1"></div></div>
+      <div class="hop" data-h="1"><span id="ha1"></span><em>kernel → user</em></div>
+      <div class="layer" data-l="2"><div class="who"><b>Process B</b><span>receiver · user space</span></div><div class="code" id="h2"></div></div>
+      <div class="foot"><span>mechanism: <b id="hlabel">pipe</b></span><span id="hcopies"></span></div>
+    </div>
+  </div>
+</header>
+
+<!-- 01 MODELS -->
+<section class="s" id="models"><div class="wrap">
+  <div class="shead"><div class="num">01</div><h2>Two ways to communicate</h2>
+  <p>An OS can provide both. In <b>shared memory</b>, the processes move the data themselves. In <b>message passing</b>, the kernel moves it for them. Step through each to see where the copies and system calls happen.</p></div>
+  <div class="panel">
+    <div class="mtop">
+      <div class="seg" id="mseg"><button class="on" data-m="shm">Shared memory</button><button data-m="msg">Message passing (pipe)</button></div>
+      <div class="steps" id="msteps"></div>
+      <div class="row"><button class="chip" id="mprev">Back</button><button class="chip" id="mnext">Next step</button><button class="chip" id="mplay">Play</button></div>
+    </div>
+    <div class="mgrid">
+      <div class="dia"><svg id="msvg" viewBox="0 0 360 300" width="100%"></svg></div>
+      <div class="side">
+        <div><h3 id="mt"></h3><p id="md"></p></div>
+        <div class="term"><div class="bar" id="mbar"></div><div class="codebox" id="mcode"></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="panel" style="margin-top:20px;overflow-x:auto">
+    <table class="cmp">
+      <tr><th></th><th>Shared memory</th><th>Message passing</th></tr>
+      <tr><td>Who moves data</td><td>The processes, with ordinary loads and stores</td><td>The kernel, on every <code>send</code> / <code>receive</code></td></tr>
+      <tr><td>Speed</td><td>Fastest: zero copies after setup</td><td>Slower: two system calls and two copies per message</td></tr>
+      <tr><td>Synchronization</td><td>The programmer's job (mutex, semaphores)</td><td>Built in: a receive blocks until data arrives</td></tr>
+      <tr><td>Best for</td><td>Large data on one machine</td><td>Small messages, and talking across machines</td></tr>
+      <tr><td>Examples</td><td><code>shm_open</code> + <code>mmap</code>, System V <code>shmget</code></td><td>Pipes, FIFOs, message queues, sockets</td></tr>
+    </table>
+  </div>
+</div></section>
+
+<!-- 02 MECHANISMS -->
+<section class="s" id="mechanisms"><div class="wrap">
+  <div class="shead"><div class="num">02</div><h2>The mechanisms an OS actually gives you</h2>
+  <p>Each mechanism is one of the two models, or a synchronization tool that makes shared memory safe. Pick one to see what it does and the system calls you use.</p></div>
+  <div class="filters" id="mfilt"></div>
+  <div class="mech">
+    <div class="panel mstack" id="mstack"></div>
+    <div class="panel minfo" id="minfo"></div>
+  </div>
+</div></section>
+
+<!-- 03 RACE -->
+<section class="s" id="race"><div class="wrap">
+  <div class="shead"><div class="num">03</div><h2>What goes wrong without synchronization</h2>
+  <p><code>counter++</code> is really three machine steps: load, add, store. Step through the interleavings below. The first loses an update, the second fixes it with a mutex, and the third shows how semaphores taken in the wrong order cause a deadlock.</p></div>
+  <div class="vtabs" id="vtabs"></div>
+  <div class="panel">
+    <div class="ver">
+      <div class="tl" id="vtl"></div>
+      <div class="stc"><h5>Shared state</h5><div class="sgrid" id="vst"></div></div>
+      <div class="logp"><h5>Trace</h5><div class="vlog" id="vlog"></div></div>
+    </div>
+    <div class="vfoot">
+      <span class="badge" id="vbadge">ready</span>
+      <div class="say" id="vsay"></div>
+      <div class="row"><button class="chip" id="vreset">Reset</button><button class="chip" id="vprev">Back</button><button class="chip" id="vnext">Step</button><button class="chip" id="vplay">Run</button></div>
+    </div>
+  </div>
+  <ul class="pts">
+    <li><b>Race condition:</b> the result depends on the order the scheduler happens to pick.</li>
+    <li><b>Critical section:</b> code that touches shared data. Only one process may be inside it at a time (mutual exclusion).</li>
+    <li><b>Semaphore</b> <code>S</code>: <code>wait(S)</code> decrements S and blocks if it is 0. <code>signal(S)</code> increments S and wakes a waiter. A mutex is a semaphore that starts at 1.</li>
+  </ul>
+</div></section>
+
+<!-- 04 DINING -->
+<section class="s" id="dining"><div class="wrap">
+  <div class="shead"><div class="num">04</div><h2>Dining Philosophers: deadlock and starvation</h2>
+  <p>Five philosophers, five forks, and each needs both neighbouring forks to eat. Every fork is a semaphore. Run it, then press <b>everyone hungry at once</b> in naive mode.</p></div>
+  <div class="sim">
+    <div class="panel">
+      <svg id="dpSvg" viewBox="0 0 400 400" width="100%"></svg>
+      <div class="legend"><span><i style="background:var(--faint)"></i>thinking</span><span><i style="background:var(--amber)"></i>hungry, no forks</span><span><i style="background:var(--acc)"></i>holding 1 fork</span><span><i style="background:var(--green)"></i>eating</span><span><i style="background:var(--plum)"></i>told to wait</span></div>
+    </div>
+    <div class="panel">
+      <div class="lbl">Strategy</div>
+      <div class="seg" id="dpSeg"><button data-m="naive" class="on">Naive</button><button data-m="ordered">Ordered forks</button><button data-m="waiter">Waiter (max 4)</button></div>
+      <div class="lbl">Run</div>
+      <div class="row"><button class="chip" id="dpPlay">Play</button><button class="chip" id="dpStep">Step</button><button class="chip" id="dpReset">Reset</button><label class="sp">speed <input type="range" id="dpSpeed" min="0" max="100" value="55"></label></div>
+      <div class="row" style="margin-top:8px"><button class="chip" id="dpForce">Everyone hungry at once</button></div>
+      <div class="lbl">What's happening</div>
+      <div class="status" id="dpStatus"></div>
+      <div class="lbl">Meals eaten</div>
+      <div class="meals" id="dpMeals"></div>
+    </div>
+  </div>
+  <ul class="pts">
+    <li>Deadlock needs all four <b>Coffman conditions</b>: mutual exclusion, hold and wait, no preemption, circular wait. Break any one of them and deadlock can't happen.</li>
+    <li><b>Ordered forks</b> breaks circular wait: everyone picks up the lower-numbered fork first, so P4 reaches for f0 before f4.</li>
+    <li><b>Waiter</b> uses a counting semaphore <code>room = 4</code>. With at most 4 philosophers competing for 5 forks, at least one always gets two.</li>
+  </ul>
+  <details><summary>Semaphore pseudocode</summary><pre><span class="k">semaphore</span> fork[5] = {1,1,1,1,1};
+
+philosopher(i):
+  <span class="k">while</span> (true) {
+    think();
+    wait(fork[i]);              <span class="c">// left</span>
+    wait(fork[(i+1) % 5]);      <span class="c">// right  ← all five can block here: deadlock</span>
+    eat();
+    signal(fork[i]);  signal(fork[(i+1) % 5]);
+  }
+<span class="c">// fix A: wait on min(i,(i+1)%5) first      fix B: wait(room) before the forks, signal(room) after</span></pre></details>
+</div></section>
+
+<!-- 05 PRODUCER CONSUMER -->
+<section class="s" id="pc"><div class="wrap">
+  <div class="shead"><div class="num">05</div><h2>Producer–Consumer: the bounded buffer</h2>
+  <p>A producer fills a fixed-size shared buffer and a consumer empties it. The producer must sleep when the buffer is full, and the consumer must sleep when it is empty. Make one side faster than the other and watch who sleeps.</p></div>
+  <div class="sim">
+    <div class="panel">
+      <div class="pcrow">
+        <div class="actor" id="pcProd"><span class="ic">produce()</span><b>Producer</b><small id="pcProdS">ready</small></div>
+        <div><div class="buf" id="pcBuf"></div><div class="ptr" id="pcPtr"></div></div>
+        <div class="actor" id="pcCons"><span class="ic">consume()</span><b>Consumer</b><small id="pcConsS">ready</small></div>
+      </div>
+      <div class="lbl" style="margin-top:22px">Semaphores</div>
+      <div class="semrow"><span class="sem" id="semEmpty">empty<b>6</b></span><span class="sem" id="semFull">full<b>0</b></span><span class="sem" id="semMutex">mutex<b>1</b></span></div>
+      <div class="stats">
+        <div class="box"><h6>produced</h6><div class="big" id="stP">0</div></div>
+        <div class="box"><h6>consumed</h6><div class="big" id="stC">0</div></div>
+        <div class="box"><h6>producer slept</h6><div class="big" id="stPS">0</div></div>
+        <div class="box"><h6>consumer slept</h6><div class="big" id="stCS">0</div></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="lbl">Manual</div>
+      <div class="row"><button class="chip" id="pcP">Produce</button><button class="chip" id="pcC">Consume</button><button class="chip" id="pcReset">Reset</button></div>
+      <div class="lbl">Automatic</div>
+      <div class="row"><button class="chip" id="pcAuto">Play</button><label class="sp">producer <input type="range" id="pcPs" min="0" max="100" value="70"></label><label class="sp">consumer <input type="range" id="pcCs" min="0" max="100" value="35"></label></div>
+      <div class="lbl">What's happening</div>
+      <div class="status" id="pcStatus"></div>
+      <div class="lbl">Event log</div>
+      <ul class="log" id="pcLog"></ul>
+    </div>
+  </div>
+  <ul class="pts">
+    <li><code>empty</code> counts free slots (starts at N), <code>full</code> counts items (starts at 0), and <code>mutex</code> guards the buffer itself.</li>
+    <li><b>Exam trap:</b> always call <code>wait(empty)</code> before <code>wait(mutex)</code>. If you swap them, the producer sleeps while holding the mutex. Section 03 shows that deadlock step by step.</li>
+  </ul>
+  <details><summary>Semaphore pseudocode</summary><pre><span class="k">semaphore</span> mutex = 1, empty = N, full = 0;
+
+producer:                           consumer:
+  <span class="k">while</span> (true) {                    <span class="k">while</span> (true) {
+    item = produce();                   wait(full);      <span class="c">// is there an item?</span>
+    wait(empty);    <span class="c">// is there a slot?</span>  wait(mutex);
+    wait(mutex);                        item = buf[out]; out = (out+1) % N;
+    buf[in] = item; in = (in+1) % N;    signal(mutex);
+    signal(mutex);                      signal(empty);   <span class="c">// one more free slot</span>
+    signal(full);   <span class="c">// one more item</span>     consume(item);
+  }                                   }</pre></details>
+</div></section>
+
+<!-- 06 READERS WRITERS -->
+<section class="s" id="rw"><div class="wrap">
+  <div class="shead"><div class="num">06</div><h2>Readers–Writers: share reads, guard writes</h2>
+  <p>Any number of <span style="color:var(--blue);font-weight:600">readers</span> can read at once, because reading changes nothing. A <span style="color:var(--acc);font-weight:600">writer</span> needs the data to itself. The hard part is fairness. Add a writer, turn on the reader flood, and watch the writer starve.</p></div>
+  <div class="sim">
+    <div class="panel">
+      <div class="room" id="rwRoom"></div>
+      <div class="lbl">Waiting queue · number = ticks waited</div>
+      <div class="q" id="rwQ"></div>
+      <div class="lbl">Variables</div>
+      <div class="semrow"><span class="sem" id="rwRC">read_count<b>0</b></span><span class="sem" id="rwRM">rw_mutex<b>1</b></span><span class="sem" id="rwServed">served<b>R0 · W0</b></span></div>
+    </div>
+    <div class="panel">
+      <div class="lbl">Policy</div>
+      <div class="seg" id="rwSeg"><button data-m="readers" class="on">Reader preference</button><button data-m="fair">Fair (FIFO)</button></div>
+      <div class="lbl">Arrivals</div>
+      <div class="row"><button class="chip" id="rwAddR">Add reader</button><button class="chip" id="rwAddW">Add writer</button><button class="chip" id="rwFlood">Reader flood: off</button></div>
+      <div class="lbl">Run</div>
+      <div class="row"><button class="chip" id="rwPlay">Play</button><button class="chip" id="rwStep">Step</button><button class="chip" id="rwReset">Reset</button><label class="sp">speed <input type="range" id="rwSpeed" min="0" max="100" value="50"></label></div>
+      <div class="lbl">What's happening</div>
+      <div class="status" id="rwStatus"></div>
+    </div>
+  </div>
+  <ul class="pts">
+    <li>The <b>first reader in</b> locks <code>rw_mutex</code> for every reader. The <b>last reader out</b> releases it. Writers simply wait on <code>rw_mutex</code>.</li>
+    <li>With <b>reader preference</b>, a steady stream of readers keeps <code>read_count</code> above 0 forever, so writers <b>starve</b>.</li>
+    <li><b>Fair or writer-priority</b> rules (a FIFO queue or an extra <code>turn</code> semaphore) make new readers queue behind a waiting writer.</li>
+  </ul>
+  <details><summary>Semaphore pseudocode (reader preference)</summary><pre><span class="k">semaphore</span> rw_mutex = 1, mutex = 1;   <span class="k">int</span> read_count = 0;
+
+writer:                   reader:
+  wait(rw_mutex);           wait(mutex);
+  write();                  read_count++;
+  signal(rw_mutex);         <span class="k">if</span> (read_count == 1) wait(rw_mutex);    <span class="c">// first reader locks writers out</span>
+                            signal(mutex);
+                            read();                                  <span class="c">// many readers at once</span>
+                            wait(mutex);
+                            read_count--;
+                            <span class="k">if</span> (read_count == 0) signal(rw_mutex);  <span class="c">// last reader lets writers in</span>
+                            signal(mutex);</pre></details>
+</div></section>
+
+<!-- 07 BARBER -->
+<section class="s" id="barber"><div class="wrap">
+  <div class="shead"><div class="num">07</div><h2>Sleeping Barber: coordination with a limited queue</h2>
+  <p>With no customers, the barber sleeps. An arriving customer wakes him, waits in a free chair if he is busy, or leaves if every chair is taken. The hard parts are a race on the seat count and lost wake-ups.</p></div>
+  <div class="sim">
+    <div class="panel">
+      <div class="shop">
+        <div class="bchair" id="sbChair"><span class="ic" id="sbIc">asleep</span><b>Barber</b><span id="sbTxt" style="color:var(--mute)">wait(customers)</span></div>
+        <div><div class="lbl" style="text-align:center;margin-top:0">Waiting chairs (3)</div><div class="chairs" id="sbChairs"></div></div>
+        <div class="door">turned away<b id="sbAway">0</b></div>
+      </div>
+      <div class="lbl" style="margin-top:22px">Variables</div>
+      <div class="semrow"><span class="sem" id="sbCust">customers<b>0</b></span><span class="sem" id="sbBarb">barber<b>0</b></span><span class="sem" id="sbFree">free_seats<b>3</b></span><span class="sem" id="sbServed">served<b>0</b></span></div>
+    </div>
+    <div class="panel">
+      <div class="lbl">Customers</div>
+      <div class="row"><button class="chip" id="sbArrive">A customer arrives</button><button class="chip" id="sbRush">Rush of 5</button></div>
+      <div class="lbl">Run</div>
+      <div class="row"><button class="chip" id="sbPlay">Play</button><button class="chip" id="sbReset">Reset</button><label class="sp">arrival rate <input type="range" id="sbRate" min="0" max="100" value="40"></label></div>
+      <div class="lbl">What's happening</div>
+      <div class="status" id="sbStatus"></div>
+      <div class="lbl">Event log</div>
+      <ul class="log" id="sbLog"></ul>
+    </div>
+  </div>
+  <ul class="pts">
+    <li><code>customers</code> counts the people waiting. The barber calls <code>wait(customers)</code>, so at 0 he sleeps.</li>
+    <li><code>barber</code> means "ready to cut". Each customer calls <code>wait(barber)</code> for their turn.</li>
+    <li><code>mutex</code> protects <code>free_seats</code>. Without it, two customers could both see one free seat and take the same chair.</li>
+  </ul>
+  <details><summary>Semaphore pseudocode</summary><pre><span class="k">semaphore</span> customers = 0, barber = 0, mutex = 1;   <span class="k">int</span> free_seats = N;
+
+barber:                            customer:
+  <span class="k">while</span> (true) {                     wait(mutex);
+    wait(customers);   <span class="c">// sleep if 0</span>   <span class="k">if</span> (free_seats > 0) {
+    wait(mutex);                         free_seats--;
+    free_seats++;                        signal(customers);   <span class="c">// wake barber</span>
+    signal(barber);    <span class="c">// ready</span>          signal(mutex);
+    signal(mutex);                       wait(barber);        <span class="c">// wait for turn</span>
+    cut_hair();                          get_haircut();
+  }                                  } <span class="k">else</span> { signal(mutex); leave(); }</pre></details>
+</div></section>
+
+<!-- 08 CHEAT SHEET -->
+<section class="s" id="cheat"><div class="wrap">
+  <div class="shead"><div class="num">08</div><h2>Cheat sheet</h2><p>Revise from this table before the exam.</p></div>
+  <div class="panel" style="overflow-x:auto">
+    <table class="cmp">
+      <tr><th>Problem</th><th>Demonstrates</th><th>Semaphores</th><th>Classic trap</th><th>Fix</th></tr>
+      <tr><td style="color:var(--ink)"><b>Dining Philosophers</b></td><td>Deadlock, starvation</td><td><code>fork[5]</code>, optional <code>room = 4</code></td><td>Everyone grabs left: circular wait</td><td>Order resources, or allow at most 4</td></tr>
+      <tr><td style="color:var(--ink)"><b>Producer–Consumer</b></td><td>Bounded buffer</td><td><code>mutex=1 empty=N full=0</code></td><td><code>wait(mutex)</code> before <code>wait(empty)</code>: deadlock</td><td>Counting semaphores first, mutex second</td></tr>
+      <tr><td style="color:var(--ink)"><b>Readers–Writers</b></td><td>Shared reads, exclusive writes</td><td><code>rw_mutex mutex read_count</code></td><td>Writer starvation</td><td>Writer priority or a FIFO <code>turn</code></td></tr>
+      <tr><td style="color:var(--ink)"><b>Sleeping Barber</b></td><td>Coordination, limited queue</td><td><code>customers barber mutex</code></td><td>Race on <code>free_seats</code>, lost wake-up</td><td>Guard the seat count with the mutex</td></tr>
+    </table>
+  </div>
+  <div class="cheat">
+    <div class="panel item"><h4>Race condition</h4><p>The output depends on the timing of the interleaving. Fix it with mutual exclusion.</p></div>
+    <div class="panel item"><h4>Deadlock</h4><p>A cycle of processes, each holding a resource the next one needs. Requires all four Coffman conditions.</p></div>
+    <div class="panel item"><h4>Starvation</h4><p>A process is ready but always loses to others. Fix it with fairness, aging or priority rules.</p></div>
+    <div class="panel item"><h4>Data inconsistency</h4><p>Shared data is read while half updated. Fix it with critical sections.</p></div>
+    <div class="panel item"><h4>Overhead and security</h4><p>System calls and copies cost time, and a shared region can leak data between processes.</p></div>
+    <div class="panel item"><h4>Scalability</h4><p>The more processes share one lock, the more of them wait. Fine-grained locking spreads that out.</p></div>
+  </div>
+</div></section>
+
+<footer><div class="wrap">System calls follow POSIX and Linux conventions. Buffer sizes and timings in the simulations are simplified for clarity.</div></footer>
+
+<script>
+(()=>{
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const rand=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const NS='http://www.w3.org/2000/svg';
+function el(tag,attrs={},parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e;}
+const speedMs=(inp,slow=1300,fast=160)=>Math.round(slow-(slow-fast)*(+inp.value/100));
+function loop(step,msFn,btn){let t=null;const o={on:false,
+  play(){if(o.on)return;o.on=true;btn.textContent='Pause';btn.classList.add('on');const run=()=>{if(!o.on)return;step();t=setTimeout(run,msFn())};run()},
+  pause(){o.on=false;clearTimeout(t);btn.textContent='Play';btn.classList.remove('on')},
+  toggle(){o.on?o.pause():o.play()}};btn.onclick=()=>o.toggle();return o}
+function seg(id,cb){const s=$(id);s.querySelectorAll('button').forEach(b=>b.onclick=()=>{s.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));cb(b.dataset.m)})}
+function setSem(id,v){$(id).querySelector('b').textContent=v}
+function flash(id){const e=$(id);e.classList.add('flash');setTimeout(()=>e.classList.remove('flash'),350)}
+function pushLog(ul,arr,m){arr.unshift(m);if(arr.length>7)arr.pop();ul.innerHTML=arr.map(x=>`<li>${x}</li>`).join('')}
+
+/* C highlighter */
+function tok(s,re,map){let out='',last=0,m;re.lastIndex=0;
+  while((m=re.exec(s))){if(m[0]===''){re.lastIndex++;continue}
+    out+=esc(s.slice(last,m.index));let cls=null;for(let i=1;i<m.length;i++)if(m[i]!==undefined){cls=map[i-1];break}
+    out+=cls?`<span class="${cls}">${esc(m[0])}</span>`:esc(m[0]);last=re.lastIndex}
+  return out+esc(s.slice(last))}
+const reC=/(\/\/.*$|\/\*.*?\*\/)|("(?:[^"\\]|\\.)*")|\b(if|else|return|while|struct|sizeof)\b|\b(int|char|void|mqd_t|sem_t|pid_t)\b|\b(0x[0-9a-fA-F]+|\d+)\b|\b([A-Za-z_]\w*)(?=\()/gm;
+const hlC=s=>tok(s,reC,['c','st','k','t','n','f']);
+
+/* ---------- hero relay ---------- */
+const DESC=[
+ {lab:'pipe',k:'pipe buffer, 64 KiB ring',a:['write() · copy 1','read() · copy 2'],l:['write(fd[1], "hello", 5);','[ h | e | l | l | o | · | · | · ]','read(fd[0], buf, 5);   // → "hello"'],f:'2 copies · kernel on every message'},
+ {lab:'message queue',k:'POSIX message queue',a:['mq_send() · copy 1','mq_receive() · copy 2'],l:['mq_send(q, "job#42", 7, 1);','[job#41 · prio 0]  [job#42 · prio 1]','mq_receive(q, buf, 64, &prio);  // → "job#42"'],f:'2 copies · whole messages with priority'},
+ {lab:'shared memory',k:'page tables, set up once',a:['plain store · no syscall','plain load · no syscall'],l:['p->temp = 42;            // store','A and B map the same physical page','printf("%d", p->temp);  // → 42'],f:'0 copies · fastest · needs a lock'},
+ {lab:'socket',k:'UNIX domain socket buffer',a:['send() · copy 1','recv() · copy 2'],l:['send(s, "PING", 4, 0);','queue: [PING]','recv(s, buf, 64, 0);    // → "PING"'],f:'2 copies · two-way · works across machines'}
+];
+const hEls=[0,1,2].map(i=>$('#h'+i)),hLayers=$$('.relay .layer'),hHops=$$('.relay .hop');
+const hlH=[hlC,s=>`<span style="color:#D9A066">${esc(s)}</span>`,hlC];
+function typeOut(e,txt,hl,cb){if(reduce){e.innerHTML=hl(txt);cb&&cb();return}
+  let i=0;const t=setInterval(()=>{i+=2;e.innerHTML=hl(txt.slice(0,i))+'<span style="color:var(--acc)">▍</span>';if(i>=txt.length){clearInterval(t);e.innerHTML=hl(txt);cb&&cb()}},24)}
+let di=0;
+function runRelay(){const d=DESC[di%DESC.length];
+  $('#hlabel').textContent=d.lab;$('#hk').textContent=d.k;$('#ha0').textContent=d.a[0];$('#ha1').textContent=d.a[1];$('#hcopies').textContent=d.f;
+  hEls.forEach(e=>e.innerHTML='&nbsp;');hLayers.forEach(l=>l.classList.remove('lit'));hHops.forEach(h=>h.classList.remove('lit'));
+  let k=0;const next=()=>{if(k>2){setTimeout(()=>{di++;runRelay()},3000);return}
+    hLayers.forEach(l=>l.classList.remove('lit'));hLayers[k].classList.add('lit');if(k>0)hHops[k-1].classList.add('lit');
+    const kk=k;typeOut(hEls[kk],d.l[kk],hlH[kk],()=>{k++;setTimeout(next,420)})};next()}
+runRelay();
+
+/* ---------- 01 models ---------- */
+const MODEL={
+ shm:{bar:'shm_demo.c  (POSIX shared memory)',code:[
+   'int fd = shm_open("/demo", O_CREAT | O_RDWR, 0600);','ftruncate(fd, 4096);','int *p = mmap(NULL, 4096, PROT_READ | PROT_WRITE,','              MAP_SHARED, fd, 0);','','*p = 42;               // in Process A','printf("%d\\n", *p);   // in Process B → 42'],
+  steps:[
+   {s:'Setup',t:'Setup: create and map the segment',d:'Process A asks the kernel for a named segment and maps it. Process B maps the same name. Both page tables now point at the same physical page. This is the only time the kernel is involved.',lines:[1,2,3,4],hl:['K','S'],setup:1},
+   {s:'A writes',t:'A writes with a plain store',d:'No system call and no copy. The value lands in memory that B can see immediately.',lines:[6],hl:['A'],anim:[[250,42],[280,42],[280,98],[250,98]],sv:'*p = 42'},
+   {s:'B reads',t:'B reads the same memory',d:'B loads from its own pointer and gets 42. It is fast, but nothing stops B from reading before A has finished writing. That is why shared memory needs a mutex or semaphore.',lines:[7],hl:['B'],anim:[[250,98],[310,98],[310,154],[250,154]],sv:'*p = 42',bs:'read 42'}
+  ]},
+ msg:{bar:'pipe_demo.c  (message passing)',code:[
+   'int fd[2];','pipe(fd);                      // kernel creates a buffer','if (fork() == 0) {             // child  = Process B','    read(fd[0], buf, 6);       // blocks until data arrives','} else {                       // parent = Process A','    write(fd[1], "hello", 6);  // copy into the kernel','}'],
+  steps:[
+   {s:'Setup',t:'Setup: the kernel creates a pipe',d:'pipe() returns two descriptors: fd[0] to read and fd[1] to write. After fork(), the child has both too. The buffer lives in kernel memory, which neither process can touch directly.',lines:[1,2,3,5],hl:['K'],kb:'buffer: [ empty ]'},
+   {s:'B blocks',t:'B calls read() and blocks',d:'The buffer is empty, so the kernel puts B to sleep. Synchronization is built in: B cannot read data that is not there yet.',lines:[4],hl:['B'],kb:'buffer: [ empty ]',bs:'asleep in read()'},
+   {s:'Copy 1',t:'A calls write(): copy 1',d:'A traps into the kernel, and its 6 bytes are copied from its own memory into the pipe buffer.',lines:[6],hl:['A'],anim:[[250,42],[290,42],[290,258],[250,258]],kb:'buffer: [ h e l l o \\0 ]',bs:'asleep in read()'},
+   {s:'Copy 2',t:'The kernel wakes B: copy 2',d:'The kernel copies the bytes into B\'s buffer and read() returns. It is safe and simple, but each message costs two system calls and two copies.',lines:[4],hl:['B','K'],anim:[[250,258],[320,258],[320,98],[250,98]],kb:'buffer: [ empty ]',bs:'read "hello"'}
+  ]}
+};
+let mm='shm',mi=0,mBusy=false,mPlayT=null;
+const msvg=$('#msvg');
+function box(x,y,w,h,label,cls=''){const g=el('g',{class:'bx '+cls},msvg);el('rect',{x,y,width:w,height:h,rx:5},g);const t=el('text',{x:x+14,y:y+h/2+5},g);t.textContent=label;return g}
+let MB={};
+function buildSvg(){msvg.innerHTML='';
+  if(mm==='shm'){
+    MB.A=box(30,20,220,44,'Process A');MB.S=box(30,76,220,44,'Shared memory','shared');MB.B=box(30,132,220,44,'Process B');
+    box(30,188,220,36,'','empty');MB.K=box(30,236,220,44,'Kernel','kern');
+    MB.sv=el('text',{x:236,y:103,'text-anchor':'end',class:'svs'},MB.S);
+    MB.bs=el('text',{x:236,y:159,'text-anchor':'end',class:'svs'},MB.B);
+    MB.setup=el('polyline',{points:'30,258 12,258 12,98 30,98',class:'setup'},msvg);
+    el('polyline',{points:'250,42 280,42 280,98 250,98',class:'lane'},msvg);el('polyline',{points:'250,98 310,98 310,154 250,154',class:'lane'},msvg);
+    el('text',{x:284,y:74,class:'svs'},msvg).textContent='①';el('text',{x:314,y:130,class:'svs'},msvg).textContent='②';
+  }else{
+    MB.A=box(30,20,220,44,'Process A');MB.B=box(30,76,220,44,'Process B');
+    const e=box(30,132,220,92,'','empty');const t=el('text',{x:140,y:182,'text-anchor':'middle',class:'svs'},msvg);t.textContent='no shared memory';
+    MB.K=box(30,236,220,44,'Kernel','kern');
+    MB.kb=el('text',{x:236,y:263,'text-anchor':'end',class:'svs'},MB.K);
+    MB.bs=el('text',{x:236,y:103,'text-anchor':'end',class:'svs'},MB.B);
+    el('polyline',{points:'250,42 290,42 290,258 250,258',class:'lane'},msvg);el('polyline',{points:'250,258 320,258 320,98 250,98',class:'lane'},msvg);
+    el('text',{x:284,y:150,class:'svs',transform:'rotate(-90 284 150)','text-anchor':'middle'},msvg).textContent='write()';
+    el('text',{x:314,y:180,class:'svs',transform:'rotate(-90 314 180)','text-anchor':'middle'},msvg).textContent='read()';
+  }
+  MB.dot=el('circle',{r:7,class:'pkt',cx:250,cy:42},msvg);
+}
+function animPath(dot,pts,ms){return new Promise(res=>{if(reduce){res();return}
+  const segs=[];let L=0;for(let i=0;i<pts.length-1;i++){const d=Math.hypot(pts[i+1][0]-pts[i][0],pts[i+1][1]-pts[i][1]);segs.push(d);L+=d}
+  const t0=performance.now();dot.style.opacity=1;
+  function f(now){const p=Math.min(1,(now-t0)/ms);let d=p*L,i=0;while(i<segs.length-1&&d>segs[i]){d-=segs[i];i++}
+    const r=Math.min(1,d/segs[i]);dot.setAttribute('cx',pts[i][0]+(pts[i+1][0]-pts[i][0])*r);dot.setAttribute('cy',pts[i][1]+(pts[i+1][1]-pts[i][1])*r);
+    if(p<1)requestAnimationFrame(f);else{dot.style.opacity=0;res()}}
+  requestAnimationFrame(f)})}
+function applyState(st){
+  ['A','B','K','S'].forEach(k=>MB[k]&&MB[k].classList.toggle('hl',st.hl.includes(k)));
+  if(MB.setup)MB.setup.style.opacity=st.setup?1:0;
+  if(MB.sv)MB.sv.textContent=st.sv||'';if(MB.kb)MB.kb.textContent=st.kb||'';if(MB.bs)MB.bs.textContent=st.bs||'';
+}
+async function mShow(i,animate=true){if(mBusy)return;mi=i;const M=MODEL[mm],st=M.steps[i];
+  $$('#msteps button').forEach((b,k)=>{b.classList.toggle('on',k===i);b.classList.toggle('done',k<i)});
+  $('#mt').textContent=st.t;$('#md').textContent=st.d;
+  $('#mcode').innerHTML=M.code.map((l,k)=>`<div class="ln${st.lines.includes(k+1)?' hl':''}"><span class="no">${k+1}</span><span class="tx">${hlC(l)||' '}</span></div>`).join('');
+  $('#mprev').disabled=i===0;$('#mnext').disabled=i===M.steps.length-1;
+  const prev=i>0?M.steps[i-1]:null;
+  if(st.anim&&animate){mBusy=true;applyState({...st,sv:prev?prev.sv:'',kb:prev?prev.kb:'',bs:prev?prev.bs:''});await animPath(MB.dot,st.anim,1100);mBusy=false}
+  applyState(st)}
+function mLoad(){const M=MODEL[mm];$('#mbar').textContent=M.bar;
+  $('#msteps').innerHTML=M.steps.map((s,k)=>`<button>${k+1} · ${s.s}</button>`).join('');
+  $$('#msteps button').forEach((b,k)=>b.onclick=()=>{mStop();mShow(k)});buildSvg();mShow(0,false)}
+function mStop(){if(mPlayT){clearTimeout(mPlayT);mPlayT=null;$('#mplay').textContent='Play';$('#mplay').classList.remove('on')}}
+$('#mprev').onclick=()=>{mStop();if(mi>0)mShow(mi-1,false)};
+$('#mnext').onclick=()=>{mStop();if(mi<MODEL[mm].steps.length-1)mShow(mi+1)};
+$('#mplay').onclick=()=>{if(mPlayT){mStop();return}$('#mplay').textContent='Pause';$('#mplay').classList.add('on');
+  const go=async()=>{if(mi>=MODEL[mm].steps.length-1){mStop();return}await mShow(mi+1);mPlayT=setTimeout(go,2400)};
+  if(mi===MODEL[mm].steps.length-1)mShow(0,false);mPlayT=setTimeout(go,600)};
+seg('#mseg',m=>{mStop();mm=m;mLoad()});
+mLoad();
+
+/* ---------- 02 mechanisms ---------- */
+const MECH={
+ pipe:{c:'msg',n:'Pipe',p:'A one-way byte stream between related processes, such as a parent and child after fork(). The kernel holds a fixed buffer: write() blocks when it is full and read() blocks when it is empty.',ex:'int fd[2];\npipe(fd);\nif (fork() == 0) read(fd[0], buf, 64);   // child\nelse            write(fd[1], "hi", 2);   // parent',pr:[['Direction','One-way'],['Who','Related processes'],['Copies','2 per message'],['Lifetime','Until both ends close']]},
+ fifo:{c:'msg',n:'Named pipe (FIFO)',p:'A pipe with a name in the file system, so unrelated processes can open it like a file. Same blocking rules as a pipe.',ex:'mkfifo("/tmp/chan", 0600);\nint fd = open("/tmp/chan", O_WRONLY);\nwrite(fd, "hi", 2);',pr:[['Direction','One-way'],['Who','Any process'],['Copies','2 per message'],['Lifetime','Name stays until unlink()']]},
+ mq:{c:'msg',n:'Message queue',p:'The kernel stores whole messages, each with a priority. Receivers get one complete message at a time, not a byte stream, and higher-priority messages come out first.',ex:'mqd_t q = mq_open("/jobs", O_CREAT | O_RDWR, 0600, NULL);\nmq_send(q, "job42", 6, 1);\nmq_receive(q, buf, 8192, NULL);',pr:[['Direction','Many-to-many'],['Who','Any process'],['Copies','2 per message'],['Lifetime','Until mq_unlink()']]},
+ sock:{c:'msg',n:'Socket',p:'A two-way channel. UNIX domain sockets connect processes on the same machine. TCP and UDP sockets connect processes across a network.',ex:'int s = socket(AF_UNIX, SOCK_STREAM, 0);\nconnect(s, (struct sockaddr *)&addr, sizeof addr);\nsend(s, "ping", 4, 0);',pr:[['Direction','Two-way'],['Who','Same or remote machine'],['Copies','2 per message'],['Lifetime','Until close()']]},
+ sig:{c:'msg',n:'Signal',p:'A tiny asynchronous notification: just a number, with no data. The receiver\'s handler interrupts whatever it was doing.',ex:'signal(SIGUSR1, on_usr1);   // receiver\nkill(pid, SIGUSR1);         // sender',pr:[['Direction','One-way'],['Who','Same user, or root'],['Copies','None, only a number'],['Lifetime','Delivered once']]},
+ shm:{c:'shm',n:'Shared memory segment',p:'The kernel maps the same physical pages into both address spaces. After setup, reads and writes are plain memory accesses. It is the fastest IPC, but you must add your own synchronization.',ex:'int fd = shm_open("/demo", O_CREAT | O_RDWR, 0600);\nftruncate(fd, 4096);\nint *p = mmap(NULL, 4096, PROT_READ | PROT_WRITE,\n              MAP_SHARED, fd, 0);\n*p = 42;',pr:[['Direction','Two-way'],['Who','Any process'],['Copies','0'],['Lifetime','Until shm_unlink()']]},
+ mmap:{c:'shm',n:'Memory-mapped file',p:'Map a regular file with MAP_SHARED. Every process that maps it sees the same bytes, and changes are written back to the file.',ex:'int fd = open("data.bin", O_RDWR);\nchar *p = mmap(NULL, len, PROT_READ | PROT_WRITE,\n               MAP_SHARED, fd, 0);',pr:[['Direction','Two-way'],['Who','Any process'],['Copies','0'],['Lifetime','The file on disk']]},
+ sem:{c:'sync',n:'Semaphore',p:'A counter with two atomic operations. wait() decrements it and blocks at zero; signal() increments it and wakes a waiter. Use it to count free slots, items or permits.',ex:'sem_t *s = sem_open("/slots", O_CREAT, 0600, 5);\nsem_wait(s);    // P(): take a slot\n/* ... */\nsem_post(s);    // V(): give it back',pr:[['Type','Counter, 0..N'],['Who','Any process'],['Used in','All four problems'],['Lifetime','Until sem_unlink()']]},
+ mutex:{c:'sync',n:'Mutex',p:'A lock with an owner: only whoever locked it may unlock it. It guards a critical section so that only one process or thread runs it at a time.',ex:'pthread_mutex_lock(&m);\ncounter++;      // critical section\npthread_mutex_unlock(&m);',pr:[['Type','Binary, 0 or 1'],['Who','Threads, or processes via PTHREAD_PROCESS_SHARED'],['Used in','Every critical section'],['Owner','Yes, unlike a semaphore']]}
+};
+const MGROUPS=[{n:'Message passing',s:'the kernel copies data between processes',k:['pipe','fifo','mq','sock','sig']},{n:'Shared memory',s:'the processes share pages directly',k:['shm','mmap']},{n:'Synchronization',s:'makes shared memory safe to use',k:['sem','mutex']}];
+const MCATS={all:'All',msg:'Message passing',shm:'Shared memory',sync:'Synchronization'};
+const MCOL={msg:'var(--blue)',shm:'var(--green)',sync:'var(--amber)'};
+$('#mstack').innerHTML=MGROUPS.map(g=>`<div class="mgrp"><h4>${g.n}</h4><small>${g.s}</small><div class="mbtns">${g.k.map(k=>`<button class="mbtn" data-k="${k}" data-c="${MECH[k].c}">${MECH[k].n}</button>`).join('')}</div></div>`).join('');
+$('#mfilt').innerHTML=Object.entries(MCATS).map(([k,v])=>`<button class="chip${k==='all'?' on':''}" data-f="${k}">${v}</button>`).join('');
+function showMech(k){const m=MECH[k];$$('.mbtn').forEach(b=>b.classList.toggle('on',b.dataset.k===k));
+  $('#minfo').innerHTML=`<div class="cat" style="color:${MCOL[m.c]}">${MCATS[m.c]}</div><h4>${m.n}</h4><p>${m.p}</p><div class="term"><pre>${m.ex.split('\n').map(hlC).join('\n')}</pre></div><div class="props">${m.pr.map(x=>`<div><span>${x[0]}</span><b>${x[1]}</b></div>`).join('')}</div>`}
+$$('.mbtn').forEach(b=>b.onclick=()=>showMech(b.dataset.k));
+$$('#mfilt button').forEach(b=>b.onclick=()=>{const f=b.dataset.f;$$('#mfilt button').forEach(x=>x.classList.toggle('on',x===b));
+  $$('.mbtn').forEach(h=>h.classList.toggle('dim',f!=='all'&&h.dataset.c!==f));
+  const first=$$('.mbtn').find(h=>h.dataset.c===f);if(first)showMech(first.dataset.k)});
+showMech('pipe');
+
+/* ---------- 03 race stepper ---------- */
+const SC={
+ nolock:{name:'No lock: lost update',keys:['counter','P1.reg','P2.reg'],init:{counter:'5','P1.reg':'—','P2.reg':'—'},a:'P1',b:'P2',
+  steps:[
+   {w:'P1',i:'reg = counter',set:{'P1.reg':'5'},say:'P1 loads the shared counter into its own register.',log:'P1  load   counter → reg = 5'},
+   {w:'P2',i:'reg = counter',set:{'P2.reg':'5'},say:'The scheduler preempts P1 before it stores. P2 loads the same old value, 5.',log:'--- context switch ---\nP2  load   counter → reg = 5'},
+   {w:'P2',i:'reg = reg + 1',set:{'P2.reg':'6'},say:'P2 increments its private copy.',log:'P2  add    reg = 6'},
+   {w:'P2',i:'counter = reg',set:{counter:'6'},say:'P2 stores 6. So far so good.',log:'P2  store  counter = 6'},
+   {w:'P1',i:'reg = reg + 1',set:{'P1.reg':'6'},say:'P1 resumes. Its register still holds the stale 5, so it computes 6.',log:'--- context switch ---\nP1  add    reg = 6   (stale!)'},
+   {w:'P1',i:'counter = reg',set:{counter:'6'},err:1,say:'P1 stores 6 and overwrites P2\'s update. Two increments ran, but the counter only went up by one.',log:'P1  store  counter = 6',fin:1}
+  ],result:['bad','counter = 6, expected 7 → LOST UPDATE (race condition)']},
+ mutex:{name:'With a mutex',keys:['counter','P1.reg','P2.reg','mutex','waiting'],init:{counter:'5','P1.reg':'—','P2.reg':'—',mutex:'free',waiting:'—'},a:'P1',b:'P2',
+  steps:[
+   {w:'P1',i:'lock(m)',set:{mutex:'held by P1'},say:'P1 locks the mutex before entering the critical section.',log:'P1  lock(m)   acquired'},
+   {w:'P1',i:'reg = counter',set:{'P1.reg':'5'},say:'P1 loads 5.',log:'P1  load   reg = 5'},
+   {w:'P2',i:'lock(m)',set:{waiting:'P2 (blocked)'},say:'P1 is preempted. P2 tries to lock, but P1 holds the mutex, so P2 blocks instead of reading a stale value.',log:'--- context switch ---\nP2  lock(m)   BLOCKED'},
+   {w:'P1',i:'reg = reg + 1',set:{'P1.reg':'6'},say:'P1 continues safely.',log:'--- context switch ---\nP1  add    reg = 6'},
+   {w:'P1',i:'counter = reg',set:{counter:'6'},say:'P1 stores 6.',log:'P1  store  counter = 6'},
+   {w:'P1',i:'unlock(m)',set:{mutex:'held by P2',waiting:'—'},say:'Unlocking wakes P2, which now owns the mutex.',log:'P1  unlock(m)  → wakes P2'},
+   {w:'P2',i:'reg = counter',set:{'P2.reg':'6'},say:'P2 loads the updated value, 6.',log:'P2  load   reg = 6'},
+   {w:'P2',i:'reg = reg + 1',set:{'P2.reg':'7'},say:'P2 increments.',log:'P2  add    reg = 7'},
+   {w:'P2',i:'counter = reg',set:{counter:'7'},say:'P2 stores 7.',log:'P2  store  counter = 7'},
+   {w:'P2',i:'unlock(m)',set:{mutex:'free'},say:'Done. Each load-add-store ran as one indivisible block.',log:'P2  unlock(m)',fin:1}
+  ],result:['ok','counter = 7 ✓  mutual exclusion kept the critical section atomic']},
+ order:{name:'Wrong semaphore order: deadlock',keys:['mutex','empty','full','Producer','Consumer'],init:{mutex:'1',empty:'0',full:'3',Producer:'running',Consumer:'running'},a:'Prod',b:'Cons',
+  steps:[
+   {w:'Prod',i:'wait(mutex)',set:{mutex:'0',Producer:'holds mutex'},say:'The buffer is full (empty = 0). The producer takes the mutex first, which is the wrong order.',log:'Prod wait(mutex)  mutex 1 → 0'},
+   {w:'Prod',i:'wait(empty)',set:{Producer:'BLOCKED on empty'},say:'empty is 0, so the producer sleeps, and it is still holding the mutex.',log:'Prod wait(empty)  empty = 0 → BLOCKED (holding mutex!)'},
+   {w:'Cons',i:'wait(full)',set:{full:'2'},say:'The consumer finds an item: full goes from 3 to 2.',log:'Cons wait(full)   full 3 → 2'},
+   {w:'Cons',i:'wait(mutex)',set:{Consumer:'BLOCKED on mutex'},err:1,say:'The consumer needs the mutex to take the item, but the sleeping producer holds it. The producer waits for the consumer, and the consumer waits for the producer.',log:'Cons wait(mutex)  mutex = 0 → BLOCKED',fin:1}
+  ],result:['bad','DEADLOCK: circular wait. Fix: call wait(empty) BEFORE wait(mutex)']}
+};
+let sc='nolock',vs=0,vT=null,states=[];
+function buildStates(){const S=SC[sc];states=[{...S.init}];let s={...S.init};S.steps.forEach(st=>{s={...s,...st.set};states.push({...s})})}
+function vRender(){const S=SC[sc],state=states[vs],prev=vs>0?states[vs-1]:null,cur=vs>0?S.steps[vs-1]:null;
+  $('#vtl').innerHTML=S.steps.map((st,k)=>{const n=k+1;const cls=n===vs?(st.err?' err':' cur'):n<vs?' seen':'';
+    return `<div class="ln${cls}"><span class="i">${n}</span><span class="${st.w===S.a?'who-a':'who-b'}">${st.w}</span><span>${esc(st.i)}</span></div>`}).join('');
+  $('#vst').innerHTML=S.keys.map(k=>{const v=state[k];const ch=prev&&prev[k]!==v;const cl=/BLOCKED|blocked/.test(v)?' blk':'';const bad=cur&&cur.err&&ch?' badv':'';
+    return `<span class="rn">${k}</span><span class="rv${ch?' chg':''}${cl}${bad}">${esc(v)}</span>`}).join('');
+  let log=S.steps.slice(0,vs).map(x=>x.err?`<span class="e">${esc(x.log)}</span>`:esc(x.log)).join('\n');
+  if(cur&&cur.fin)log+=`\n\n<span class="${S.result[0]==='ok'?'g':'e'}">${esc(S.result[1])}</span>`;
+  if(!vs)log='<span style="color:var(--tdim)">press Step to begin</span>';
+  const L=$('#vlog');L.innerHTML=log;L.scrollTop=L.scrollHeight;
+  $('#vsay').textContent=cur?cur.say:(sc==='order'?'The buffer starts full. Watch what happens when the producer locks the mutex before checking for a free slot.':'Both processes run counter++ once, starting from counter = 5. The correct answer is 7.');
+  const bd=$('#vbadge');const fin=cur&&cur.fin;bd.className='badge '+(fin?(S.result[0]==='ok'?'ok':'bad'):vs?'run':'');
+  bd.textContent=fin?(S.result[0]==='ok'?'correct':(sc==='order'?'deadlock':'wrong result')):vs?`step ${vs}/${S.steps.length}`:'ready';
+  $('#vprev').disabled=vs===0;$('#vnext').disabled=vs===S.steps.length}
+function vStop(){if(vT){clearInterval(vT);vT=null;$('#vplay').textContent='Run';$('#vplay').classList.remove('on')}}
+$('#vtabs').innerHTML=Object.entries(SC).map(([k,v])=>`<button class="chip${k===sc?' on':''}" data-s="${k}">${v.name}</button>`).join('');
+$$('#vtabs button').forEach(b=>b.onclick=()=>{vStop();sc=b.dataset.s;vs=0;$$('#vtabs button').forEach(x=>x.classList.toggle('on',x===b));buildStates();vRender()});
+$('#vnext').onclick=()=>{vStop();if(vs<SC[sc].steps.length){vs++;vRender()}};
+$('#vprev').onclick=()=>{vStop();if(vs>0){vs--;vRender()}};
+$('#vreset').onclick=()=>{vStop();vs=0;vRender()};
+$('#vplay').onclick=()=>{if(vT){vStop();return}if(vs>=SC[sc].steps.length)vs=0;$('#vplay').textContent='Pause';$('#vplay').classList.add('on');
+  vT=setInterval(()=>{if(vs>=SC[sc].steps.length){vStop();return}vs++;vRender()},1400)};
+buildStates();vRender();
+
+/* ---------- 04 dining ---------- */
+const DP={mode:'naive',phil:[],forks:[],meals:[],dead:false};
+const dpSvg=$('#dpSvg'),CX=200,CY=200,rad=d=>d*Math.PI/180,pAng=i=>-90+i*72,fAng=j=>-90+j*72-36;
+el('circle',{cx:CX,cy:CY,r:106,class:'dp-table'},dpSvg);
+for(let i=0;i<5;i++)el('circle',{cx:CX+70*Math.cos(rad(pAng(i))),cy:CY+70*Math.sin(rad(pAng(i))),r:19,class:'plate'},dpSvg);
+const forkEls=[],philEls=[];
+for(let j=0;j<5;j++){const g=el('g',{class:'fork'},dpSvg);el('line',{x1:0,y1:-14,x2:0,y2:14},g);const t=el('text',{x:0,y:27,'text-anchor':'middle'},g);t.textContent='f'+j;forkEls.push(g)}
+for(let i=0;i<5;i++){const x=CX+150*Math.cos(rad(pAng(i))),y=CY+150*Math.sin(rad(pAng(i)));const g=el('g',{class:'ph'},dpSvg);
+  const c=el('circle',{cx:x,cy:y,r:27,class:'st-think'},g);const nm=el('text',{x,y:y+5,'text-anchor':'middle',class:'nm'},g);nm.textContent='P'+i;
+  const lb=el('text',{x,y:y+(i===0?-36:44),'text-anchor':'middle',class:'lb'},g);philEls.push({g,c,lb})}
+const forksOf=i=>{const L=i,R=(i+1)%5;return DP.mode==='ordered'?[Math.min(L,R),Math.max(L,R)]:[L,R]};
+const activeCount=()=>DP.phil.filter(p=>['hungry','one','eat'].includes(p.s)).length;
+function dpReset(){DP.phil=Array.from({length:5},()=>({s:'think',t:rand(1,6)}));DP.forks=Array(5).fill(-1);DP.meals=Array(5).fill(0);DP.dead=false;dpRender()}
+function dpStepPhil(i){const p=DP.phil[i],[f1,f2]=forksOf(i);
+  if(p.s==='think'){if(--p.t<=0)p.s=(DP.mode==='waiter'&&activeCount()>=4)?'wait':'hungry'}
+  else if(p.s==='wait'){if(activeCount()<4)p.s='hungry'}
+  else if(p.s==='hungry'){if(DP.forks[f1]===-1){DP.forks[f1]=i;p.s='one'}}
+  else if(p.s==='one'){if(DP.forks[f2]===-1){DP.forks[f2]=i;p.s='eat';p.t=rand(2,4)}}
+  else if(p.s==='eat'){if(--p.t<=0){DP.forks[f1]=DP.forks[f2]=-1;p.s='think';p.t=rand(2,7);DP.meals[i]++}}}
+function dpTick(){if(DP.dead)return;[0,1,2,3,4].sort(()=>Math.random()-.5).forEach(dpStepPhil);
+  if(DP.phil.every(p=>p.s==='one')){DP.dead=true;dpLoop.pause()}dpRender()}
+const LB={think:'thinking',hungry:'hungry',one:'has 1 fork',eat:'eating',wait:'waiting'};
+function dpRender(){
+  DP.phil.forEach((p,i)=>{const e=philEls[i];e.c.setAttribute('class','st-'+p.s);e.lb.textContent=LB[p.s];e.g.classList.toggle('dead',DP.dead)});
+  DP.forks.forEach((h,j)=>{let a=fAng(j),r=82;if(h>=0){let d=pAng(h)-a;while(d>180)d-=360;while(d<-180)d+=360;a+=d*.6;r=104}
+    forkEls[j].style.transform=`translate(${CX+r*Math.cos(rad(a))}px,${CY+r*Math.sin(rad(a))}px) rotate(${a+90}deg)`;forkEls[j].classList.toggle('held',h>=0)});
+  $('#dpMeals').innerHTML=DP.meals.map((m,i)=>`<span>P${i}: ${m}</span>`).join('');
+  const st=$('#dpStatus');st.className='status';
+  if(DP.dead){st.classList.add('bad');st.innerHTML='<b>Deadlock.</b> Every philosopher holds their left fork and waits for the right one, which a neighbour holds. That is a circular wait, so nobody will ever eat. Press Reset.'}
+  else if(DP.mode==='naive')st.innerHTML='Everyone picks up the <b>left</b> fork, then the <b>right</b>. With random timing this usually works, so press <b>Everyone hungry at once</b> to see the unlucky case.';
+  else if(DP.mode==='ordered')st.innerHTML='Everyone picks up the <b>lower-numbered</b> fork first, so P4 reaches for f0 before f4. A cycle can\'t form: try forcing everyone hungry.';
+  else st.innerHTML=`The waiter (<code>room = 4</code>) lets at most four philosophers compete. Competing now: <b>${activeCount()}</b>.`}
+const dpLoop=loop(dpTick,()=>speedMs($('#dpSpeed')),$('#dpPlay'));
+$('#dpStep').onclick=()=>{dpLoop.pause();dpTick()};
+$('#dpReset').onclick=()=>{dpLoop.pause();dpReset()};
+$('#dpForce').onclick=()=>{if(DP.dead)dpReset();DP.phil.forEach(p=>{p.s='think';p.t=1});DP.forks=Array(5).fill(-1);dpRender();dpLoop.play()};
+seg('#dpSeg',m=>{dpLoop.pause();DP.mode=m;dpReset()});
+dpReset();
+
+/* ---------- 05 producer consumer ---------- */
+const PC={N:6},pcArr=[];
+function pcReset(){Object.assign(PC,{buf:Array(6).fill(null),inP:0,outP:0,empty:6,full:0,id:1,pb:false,cb:false,np:0,nc:0,ps:0,cs:0});pcArr.length=0;$('#pcLog').innerHTML='';pcRender()}
+const pcLog=m=>pushLog($('#pcLog'),pcArr,m);
+function produce(){if(PC.pb)return;
+  if(PC.empty===0){PC.pb=true;PC.ps++;pcLog('Producer: wait(empty), empty = 0 → <b>sleeps</b>');pcRender();return}
+  PC.empty--;flash('#semMutex');const id=PC.id++;PC.buf[PC.inP]=id;PC.inP=(PC.inP+1)%PC.N;PC.full++;PC.np++;
+  pcLog(`Producer: wait(empty) → put item ${id} → signal(full)`);
+  if(PC.cb){PC.cb=false;pcLog('signal(full) <b>wakes</b> the consumer');pcRender();setTimeout(consume,300)}
+  pcRender()}
+function consume(){if(PC.cb)return;
+  if(PC.full===0){PC.cb=true;PC.cs++;pcLog('Consumer: wait(full), full = 0 → <b>sleeps</b>');pcRender();return}
+  PC.full--;flash('#semMutex');const id=PC.buf[PC.outP];PC.buf[PC.outP]=null;PC.outP=(PC.outP+1)%PC.N;PC.empty++;PC.nc++;
+  pcLog(`Consumer: wait(full) → took item ${id} → signal(empty)`);
+  if(PC.pb){PC.pb=false;pcLog('signal(empty) <b>wakes</b> the producer');pcRender();setTimeout(produce,300)}
+  pcRender()}
+function pcRender(){
+  $('#pcBuf').innerHTML=PC.buf.map(v=>`<div class="slot${v?' full':''}">${v??''}</div>`).join('');
+  $('#pcPtr').innerHTML=PC.buf.map((_,i)=>`<span>${i===PC.inP?'<span class="in">▲ in</span>':''}${i===PC.inP&&i===PC.outP?'<br>':''}${i===PC.outP?'<span class="out">▲ out</span>':''}</span>`).join('');
+  setSem('#semEmpty',PC.empty);setSem('#semFull',PC.full);
+  $('#pcProd').classList.toggle('sleep',PC.pb);$('#pcCons').classList.toggle('sleep',PC.cb);
+  $('#pcProdS').textContent=PC.pb?'asleep on empty':'ready';$('#pcConsS').textContent=PC.cb?'asleep on full':'ready';
+  $('#stP').textContent=PC.np;$('#stC').textContent=PC.nc;$('#stPS').textContent=PC.ps;$('#stCS').textContent=PC.cs;
+  const st=$('#pcStatus');st.className='status';
+  if(PC.pb)st.innerHTML='<b>Buffer full.</b> The producer is blocked in <code>wait(empty)</code> until the consumer frees a slot.';
+  else if(PC.cb)st.innerHTML='<b>Buffer empty.</b> The consumer is blocked in <code>wait(full)</code> until the producer adds an item.';
+  else st.innerHTML=`${PC.full} item(s) and ${PC.empty} free slot(s). <code>empty + full = N</code> always holds. Press Produce 7 times to fill it.`}
+$('#pcP').onclick=produce;$('#pcC').onclick=consume;
+let pcOn=false,pcT1,pcT2;
+function pcStart(){pcOn=true;$('#pcAuto').textContent='Pause';$('#pcAuto').classList.add('on');
+  const p=()=>{if(!pcOn)return;produce();pcT1=setTimeout(p,speedMs($('#pcPs'),2200,250))};
+  const c=()=>{if(!pcOn)return;consume();pcT2=setTimeout(c,speedMs($('#pcCs'),2200,250))};
+  pcT1=setTimeout(p,150);pcT2=setTimeout(c,700)}
+function pcStop(){pcOn=false;clearTimeout(pcT1);clearTimeout(pcT2);$('#pcAuto').textContent='Play';$('#pcAuto').classList.remove('on')}
+$('#pcAuto').onclick=()=>pcOn?pcStop():pcStart();
+$('#pcReset').onclick=()=>{pcStop();pcReset()};
+pcReset();
+
+/* ---------- 06 readers writers ---------- */
+const RW={policy:'readers',flood:false};
+function rwReset(){Object.assign(RW,{inside:[],queue:[],id:{R:1,W:1},served:{R:0,W:0}});rwRender()}
+const writerIn=()=>RW.inside.some(e=>e.type==='W');
+const rwAdd=t=>RW.queue.push({type:t,n:RW.id[t]++,dur:t==='R'?rand(3,5):3,wait:0});
+function admit(){
+  if(RW.policy==='readers'){if(!writerIn()){const rs=RW.queue.filter(e=>e.type==='R');RW.queue=RW.queue.filter(e=>e.type!=='R');RW.inside.push(...rs);
+      if(!RW.inside.length){const wi=RW.queue.findIndex(e=>e.type==='W');if(wi>=0)RW.inside.push(RW.queue.splice(wi,1)[0])}}}
+  else{while(RW.queue.length){const h=RW.queue[0];
+      if(h.type==='R'&&!writerIn())RW.inside.push(RW.queue.shift());
+      else if(h.type==='W'&&!RW.inside.length){RW.inside.push(RW.queue.shift());break}else break}}}
+function rwTick(){RW.inside.forEach(e=>e.dur--);RW.inside=RW.inside.filter(e=>{if(e.dur<=0){RW.served[e.type]++;return false}return true});
+  if(RW.flood){if(Math.random()<.85)rwAdd('R')}else{if(Math.random()<.3)rwAdd('R');if(Math.random()<.1)rwAdd('W')}
+  admit();RW.queue.forEach(e=>e.wait++);rwRender()}
+const chip=(e,inside)=>`<span class="ent ${e.type}${!inside&&e.type==='W'&&e.wait>=8?' starve':''}">${e.type}${e.n}<small>${inside?'':e.wait}</small></span>`;
+function rwRender(){const w=writerIn(),rc=RW.inside.filter(e=>e.type==='R').length,room=$('#rwRoom');
+  room.className='room'+(w?' w':rc?' r':'');
+  room.innerHTML=`<div class="room-label">Shared data · ${w?'writing, exclusive':rc?rc+' reading together':'idle'}</div>`+RW.inside.map(e=>chip(e,true)).join('');
+  $('#rwQ').innerHTML=RW.queue.map(e=>chip(e,false)).join('')||'<span style="color:var(--mute);font-size:13px;padding:10px 4px">empty</span>';
+  setSem('#rwRC',rc);setSem('#rwRM',(w||rc)?0:1);setSem('#rwServed',`R${RW.served.R} · W${RW.served.W}`);
+  const sv=RW.queue.find(e=>e.type==='W'&&e.wait>=8),st=$('#rwStatus');st.className='status';
+  if(sv){st.classList.add('bad');st.innerHTML=`W${sv.n} has waited ${sv.wait} ticks. <b>Writer starvation:</b> new readers keep arriving, so <code>read_count</code> never reaches 0. Switch to Fair.`}
+  else if(w)st.innerHTML='A writer has the data to itself. Everyone else waits.';
+  else if(rc)st.innerHTML=`${rc} reader(s) inside at once. That's fine, because reading changes nothing.`+(RW.queue.some(e=>e.type==='W')?' A writer is waiting for <code>read_count = 0</code>.':'');
+  else st.innerHTML=RW.policy==='readers'?'Reader preference: new readers go straight in whenever no writer is <i>inside</i>, even if a writer is waiting.':'Fair: arrival order. Once a writer is waiting, readers who arrive later queue behind it.'}
+const rwLoop=loop(rwTick,()=>speedMs($('#rwSpeed')),$('#rwPlay'));
+$('#rwStep').onclick=()=>{rwLoop.pause();rwTick()};
+$('#rwReset').onclick=()=>{rwLoop.pause();rwReset()};
+$('#rwAddR').onclick=()=>{rwAdd('R');admit();rwRender()};
+$('#rwAddW').onclick=()=>{rwAdd('W');admit();rwRender()};
+$('#rwFlood').onclick=()=>{RW.flood=!RW.flood;$('#rwFlood').textContent='Reader flood: '+(RW.flood?'on':'off');$('#rwFlood').classList.toggle('on',RW.flood)};
+seg('#rwSeg',m=>{RW.policy=m;admit();rwRender()});
+rwReset();
+
+/* ---------- 07 barber ---------- */
+const SB={chairs:3},sbArr=[];
+function sbReset(){Object.assign(SB,{waiting:[],cutting:null,away:0,served:0,id:1});sbArr.length=0;$('#sbLog').innerHTML='';sbRender()}
+const sbLog=m=>pushLog($('#sbLog'),sbArr,m);
+function arrive(){const c={n:SB.id++};flash('#sbFree');
+  if(!SB.cutting&&!SB.waiting.length){SB.cutting={...c,t:rand(3,5)};sbLog(`C${c.n} arrives → signal(customers) <b>wakes the barber</b>`);flash('#sbCust')}
+  else if(SB.waiting.length<SB.chairs){SB.waiting.push(c);sbLog(`C${c.n} arrives → free_seats-- → waits`)}
+  else{SB.away++;sbLog(`C${c.n} arrives → free_seats = 0 → <b>leaves</b>`)}
+  sbRender()}
+function sbTick(){
+  if(SB.cutting&&--SB.cutting.t<=0){SB.served++;sbLog(`C${SB.cutting.n} done`);SB.cutting=null;
+    if(SB.waiting.length){const c=SB.waiting.shift();SB.cutting={...c,t:rand(3,5)};sbLog(`Barber: wait(customers) → calls C${c.n}, free_seats++`);flash('#sbBarb')}
+    else sbLog('Barber: wait(customers), customers = 0 → <b>sleeps</b>')}
+  if(Math.random()<(+$('#sbRate').value/100)*.6)arrive();else sbRender()}
+function sbRender(){const cut=!!SB.cutting;
+  $('#sbChair').classList.toggle('cut',cut);$('#sbIc').textContent=cut?'cutting':'asleep';
+  $('#sbTxt').innerHTML=cut?`customer <b>C${SB.cutting.n}</b>`:'wait(customers)';
+  $('#sbChairs').innerHTML=Array.from({length:SB.chairs},(_,i)=>`<div class="chair">${SB.waiting[i]?`<div class="cust">C${SB.waiting[i].n}</div>`:''}</div>`).join('');
+  $('#sbAway').textContent=SB.away;
+  setSem('#sbCust',SB.waiting.length);setSem('#sbBarb',cut?0:1);setSem('#sbFree',SB.chairs-SB.waiting.length);setSem('#sbServed',SB.served);
+  const st=$('#sbStatus');st.className='status';
+  if(!cut)st.innerHTML='No customers, so the barber is <b>asleep</b>, blocked in <code>wait(customers)</code>.';
+  else if(SB.waiting.length===SB.chairs){st.classList.add('bad');st.innerHTML='All chairs are taken. New customers check <code>free_seats</code> under the mutex, see 0, and leave.'}
+  else st.innerHTML=`The barber is busy: ${SB.waiting.length} waiting, ${SB.chairs-SB.waiting.length} free seat(s).`}
+const sbLoop=loop(sbTick,()=>750,$('#sbPlay'));
+$('#sbArrive').onclick=()=>{arrive();sbLoop.play()};
+$('#sbRush').onclick=()=>{for(let i=0;i<5;i++)arrive();sbLoop.play()};
+$('#sbReset').onclick=()=>{sbLoop.pause();sbReset()};
+sbReset();
+
+/* ---------- nav highlight ---------- */
+const navs=$$('nav.top .links a');
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)navs.forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+e.target.id))}),{rootMargin:'-45% 0px -50% 0px'});
+$$('section.s').forEach(s=>io.observe(s));
+})();
+</script>
+</body>
+</html>
